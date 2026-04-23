@@ -33,6 +33,7 @@ class PoStateProjectorTest {
     @BeforeEach
     void setup() {
         jdbc.update("DELETE FROM stock_projection");
+        jdbc.update("DELETE FROM price_baseline");
         jdbc.update("DELETE FROM events");
         jdbc.update("DELETE FROM purchase_order_lines");
         jdbc.update("DELETE FROM purchase_orders");

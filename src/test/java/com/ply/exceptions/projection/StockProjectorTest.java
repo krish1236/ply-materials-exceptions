@@ -28,6 +28,7 @@ class StockProjectorTest {
     @BeforeEach
     void setup() {
         jdbc.update("DELETE FROM stock_projection");
+        jdbc.update("DELETE FROM price_baseline");
         jdbc.update("DELETE FROM events");
         jdbc.update("DELETE FROM job_requirements");
         jdbc.update("DELETE FROM purchase_order_lines");
