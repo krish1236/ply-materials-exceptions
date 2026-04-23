@@ -25,8 +25,44 @@ public class StockProjectionUpdater implements ProjectionUpdater {
             case STOCK_TRANSFER -> applyTransfer(env);
             case STOCK_ADJUSTMENT -> applyAdjustment(env);
             case PART_USED -> applyPartUsed(env);
+            case PO_RECEIVED -> applyReceived(env);
             default -> { /* not a stock event */ }
         }
+    }
+
+    private void applyReceived(EventEnvelope env) {
+        JsonNode p = env.payload();
+        String location = text(p, "received_at_location");
+        JsonNode lines = p.get("lines");
+        if (lines == null || !lines.isArray()) {
+            return;
+        }
+        for (JsonNode line : lines) {
+            String sku = text(line, "sku");
+            int qty = intField(line, "qty");
+            upsertReceive(sku, location, qty, env.occurredAt(), env.source(), env.type());
+        }
+    }
+
+    private void upsertReceive(String sku, String location, int qty, Instant at,
+                               String source, EventType type) {
+        jdbc.update("""
+                INSERT INTO stock_projection
+                    (sku, location_id, qty, last_event_at, last_scan_at,
+                     last_event_source, last_event_type, events_since_scan)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+                ON CONFLICT (sku, location_id) DO UPDATE SET
+                    qty = stock_projection.qty + EXCLUDED.qty,
+                    last_event_at = EXCLUDED.last_event_at,
+                    last_scan_at = EXCLUDED.last_scan_at,
+                    last_event_source = EXCLUDED.last_event_source,
+                    last_event_type = EXCLUDED.last_event_type,
+                    events_since_scan = 0
+                """,
+                sku, location, qty,
+                Timestamp.from(at),
+                Timestamp.from(at),
+                source, type.name());
     }
 
     private void applyScan(EventEnvelope env) {
