@@ -24,6 +24,7 @@ services:
       DATABASE_URL: jdbc:postgresql://db:5432/ply
       DATABASE_USERNAME: ply
       DATABASE_PASSWORD: ply
+      SPRING_PROFILES_ACTIVE: dev
     ports:
       - "8080:8080"
 
