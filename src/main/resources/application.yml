@@ -21,3 +21,8 @@ management:
   endpoint:
     health:
       show-details: never
+
+ply:
+  webhook:
+    signing-secret: ${WEBHOOK_SIGNING_SECRET:local-dev-secret-rotate-me}
+    max-clock-skew-seconds: 300
