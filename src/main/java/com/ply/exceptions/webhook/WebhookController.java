@@ -20,17 +20,20 @@ public class WebhookController {
     private final HmacVerifier verifier;
     private final WebhookProperties props;
     private final EventStore store;
+    private final DeadLetterStore dlq;
     private final ObjectMapper mapper;
     private final Clock clock;
 
     public WebhookController(HmacVerifier verifier,
                              WebhookProperties props,
                              EventStore store,
+                             DeadLetterStore dlq,
                              ObjectMapper mapper,
                              Clock clock) {
         this.verifier = verifier;
         this.props = props;
         this.store = store;
+        this.dlq = dlq;
         this.mapper = mapper;
         this.clock = clock;
     }
@@ -51,9 +54,11 @@ public class WebhookController {
         try {
             req = mapper.readValue(body, WebhookRequest.class);
         } catch (Exception e) {
+            dlq.write(source, "malformed json: " + e.getClass().getSimpleName(), body);
             return ResponseEntity.badRequest().build();
         }
         if (req.externalId() == null || req.type() == null || req.occurredAt() == null || req.payload() == null) {
+            dlq.write(source, "missing required field", body);
             return ResponseEntity.badRequest().build();
         }
 
