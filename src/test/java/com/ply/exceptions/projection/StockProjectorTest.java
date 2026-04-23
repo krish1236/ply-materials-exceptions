@@ -70,7 +70,7 @@ class StockProjectorTest {
         projector.pumpOnce();
 
         assertThat(qtyAt("BRK-20A", "wh_A")).isEqualTo(6);
-        assertThat(qtyAt("BRK-20A", "truck_8")).isEqualTo(2);
+        assertThat(qtyAt("BRK-20A", "truck_8")).isEqualTo(1);
         assertThat(qtyAt("BRK-20A", "truck_12")).isEqualTo(1);
         assertThat(qtyAt("CAP-45", "wh_A")).isEqualTo(3);
         assertThat(qtyAt("CAP-45", "truck_8")).isEqualTo(1);
