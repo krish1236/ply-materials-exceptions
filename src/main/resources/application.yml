@@ -4,3 +4,11 @@ server:
 spring:
   application:
     name: materials-exceptions
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/ply}
+    username: ${DATABASE_USERNAME:ply}
+    password: ${DATABASE_PASSWORD:ply}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
