@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -38,7 +37,6 @@ public class Projector {
         this.updaters = updaters;
     }
 
-    @Scheduled(fixedDelayString = "${ply.projector.poll-ms:500}")
     public synchronized void pump() {
         int applied;
         do {
@@ -63,18 +61,20 @@ public class Projector {
             return 0;
         }
         for (EventRow row : batch) {
-            tx.execute(status -> {
-                try {
+            try {
+                tx.execute(status -> {
                     EventEnvelope env = toEnvelope(row);
                     for (ProjectionUpdater u : updaters) {
                         u.apply(env);
                     }
-                    advanceCursor(row.ingestedAt, row.id);
-                } catch (Exception e) {
-                    log.error("projector failed on event id={} type={}: {}",
-                            row.id, row.type, e.getMessage());
-                    advanceCursor(row.ingestedAt, row.id);
-                }
+                    return null;
+                });
+            } catch (Exception e) {
+                log.error("projector skipping event id={} type={}: {}",
+                        row.id, row.type, e.getMessage());
+            }
+            tx.execute(status -> {
+                advanceCursor(row.ingestedAt, row.id);
                 return null;
             });
         }
@@ -119,15 +119,19 @@ public class Projector {
                 Timestamp.from(ingestedAt), id);
     }
 
-    private EventEnvelope toEnvelope(EventRow row) throws Exception {
-        JsonNode payload = mapper.readTree(row.payloadText);
-        return new EventEnvelope(
-                row.source,
-                row.externalId,
-                EventType.valueOf(row.type),
-                row.occurredAt,
-                payload
-        );
+    private EventEnvelope toEnvelope(EventRow row) {
+        try {
+            JsonNode payload = mapper.readTree(row.payloadText);
+            return new EventEnvelope(
+                    row.source,
+                    row.externalId,
+                    EventType.valueOf(row.type),
+                    row.occurredAt,
+                    payload
+            );
+        } catch (Exception e) {
+            throw new IllegalStateException("failed to parse event envelope id=" + row.id, e);
+        }
     }
 
     private record Cursor(Instant lastIngestedAt, UUID lastEventId) {}

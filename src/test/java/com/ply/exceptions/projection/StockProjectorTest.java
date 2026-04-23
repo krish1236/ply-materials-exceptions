@@ -91,6 +91,29 @@ class StockProjectorTest {
     }
 
     @Test
+    void poison_event_is_skipped_and_cursor_advances_past_it() {
+        Instant t = Instant.parse("2026-04-22T08:00:00Z");
+
+        store.append(new EventEnvelope("test", "evt_poison", EventType.STOCK_SCAN,
+                t, payload("sku", "DOES-NOT-EXIST", "location", "wh_A", "qty", 5)));
+        store.append(new EventEnvelope("test", "evt_good", EventType.STOCK_SCAN,
+                t.plusSeconds(60), payload("sku", "BRK-20A", "location", "wh_A", "qty", 10)));
+
+        int applied = projector.pumpOnce();
+        assertThat(applied).isEqualTo(2);
+
+        assertThat(qtyAt("BRK-20A", "wh_A")).isEqualTo(10);
+
+        Integer poisonRows = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM stock_projection WHERE sku = 'DOES-NOT-EXIST'",
+                Integer.class);
+        assertThat(poisonRows).isEqualTo(0);
+
+        int next = projector.pumpOnce();
+        assertThat(next).isEqualTo(0);
+    }
+
+    @Test
     void scan_resets_events_since_scan_counter() {
         Instant t = Instant.parse("2026-04-22T08:00:00Z");
         append("evt_c_1", EventType.STOCK_SCAN, t, payload("sku", "BRK-20A", "location", "truck_8", "qty", 5));
