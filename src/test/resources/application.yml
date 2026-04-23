@@ -1,3 +1,19 @@
+spring:
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
 ply:
+  webhook:
+    signing-secret: test-signing-secret
+    max-clock-skew-seconds: 300
   projector:
     scheduler-enabled: false
+    poll-ms: 500
