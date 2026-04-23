@@ -33,6 +33,10 @@ class PriceBaselineProjectorTest {
         jdbc.update("DELETE FROM stock_projection");
         jdbc.update("DELETE FROM price_baseline");
         jdbc.update("DELETE FROM events");
+        jdbc.update("DELETE FROM purchase_order_lines");
+        jdbc.update("DELETE FROM purchase_orders");
+        jdbc.update("DELETE FROM job_requirements");
+        jdbc.update("DELETE FROM jobs");
         jdbc.update("DELETE FROM items");
         jdbc.update("DELETE FROM locations");
         jdbc.update("UPDATE projector_offset SET last_ingested_at = '1970-01-01T00:00:00Z', last_event_id = '00000000-0000-0000-0000-000000000000'");
