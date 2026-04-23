@@ -1,0 +1,32 @@
+# build output
+target/
+build/
+out/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# os
+.DS_Store
+Thumbs.db
+
+# local docs and strategy notes
+docs/
+
+# env + local overrides
+.env
+.env.local
+application-local.yml
+application-local.yaml
+
+# logs
+*.log
+logs/
+
+# dependency caches
+node_modules/
+.m2/
