@@ -16,10 +16,19 @@ public class HmacVerifier {
 
     private static final String ALGO = "HmacSHA256";
 
-    public Outcome verify(String secret, String body, String header) {
+    private final long maxSkewSeconds;
+
+    public HmacVerifier(long maxSkewSeconds) {
+        this.maxSkewSeconds = maxSkewSeconds;
+    }
+
+    public Outcome verify(String secret, String body, String header, long nowEpochSec) {
         ParsedHeader parsed = parse(header);
         if (parsed == null) {
             return Outcome.MALFORMED_HEADER;
+        }
+        if (Math.abs(nowEpochSec - parsed.t()) > maxSkewSeconds) {
+            return Outcome.TIMESTAMP_OUT_OF_WINDOW;
         }
         String expected = hmacHex(secret, parsed.t() + "." + body);
         byte[] a = expected.getBytes(StandardCharsets.UTF_8);
