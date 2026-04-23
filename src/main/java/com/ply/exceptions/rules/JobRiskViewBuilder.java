@@ -66,10 +66,47 @@ public class JobRiskViewBuilder {
                 }
             }
 
-            perItems.add(new JobRiskView.PerItem(req.sku(), req.required(), byLocation, itemPos));
+            JobRiskView.PriceSignal priceSignal = loadPriceSignal(req.sku());
+
+            perItems.add(new JobRiskView.PerItem(req.sku(), req.required(), byLocation, itemPos, priceSignal));
         }
 
         return new JobRiskView(job, perItems, now);
+    }
+
+    private JobRiskView.PriceSignal loadPriceSignal(String sku) {
+        List<Object[]> latest = jdbc.query("""
+                SELECT payload->>'vendor' AS vendor, (payload->>'unit_cost')::numeric AS cost
+                FROM events
+                WHERE type = 'PRICE_QUOTED' AND payload->>'sku' = ?
+                ORDER BY occurred_at DESC
+                LIMIT 1
+                """,
+                (rs, i) -> new Object[]{rs.getString("vendor"), rs.getBigDecimal("cost")},
+                sku);
+        if (latest.isEmpty()) {
+            return null;
+        }
+        String vendor = (String) latest.get(0)[0];
+        double latestCost = ((java.math.BigDecimal) latest.get(0)[1]).doubleValue();
+
+        List<double[]> baseline = jdbc.query("""
+                SELECT mean, m2, samples FROM price_baseline WHERE sku = ? AND vendor = ?
+                """,
+                (rs, i) -> new double[]{
+                        rs.getBigDecimal("mean").doubleValue(),
+                        rs.getBigDecimal("m2").doubleValue(),
+                        rs.getInt("samples")
+                },
+                sku, vendor);
+        if (baseline.isEmpty()) {
+            return new JobRiskView.PriceSignal(latestCost, 0.0, latestCost, 1);
+        }
+        double mean = baseline.get(0)[0];
+        double m2 = baseline.get(0)[1];
+        int samples = (int) baseline.get(0)[2];
+        double stddev = samples < 2 ? 0.0 : Math.sqrt(m2 / (samples - 1));
+        return new JobRiskView.PriceSignal(mean, stddev, latestCost, samples);
     }
 
     public List<JobRiskView> buildForScheduledBetween(Instant start, Instant end, Instant now) {

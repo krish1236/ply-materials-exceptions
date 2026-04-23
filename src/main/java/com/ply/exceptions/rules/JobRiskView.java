@@ -16,7 +16,8 @@ public record JobRiskView(
             String sku,
             int required,
             List<LocationState> byLocation,
-            List<PurchaseOrder> openPos
+            List<PurchaseOrder> openPos,
+            PriceSignal priceSignal
     ) {}
 
     public record LocationState(
@@ -26,5 +27,12 @@ public record JobRiskView(
             Instant lastScanAt,
             int eventsSinceScan,
             String lastEventType
+    ) {}
+
+    public record PriceSignal(
+            double mean,
+            double stddev,
+            double latestQuote,
+            int samples
     ) {}
 }

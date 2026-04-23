@@ -92,7 +92,7 @@ class CountLikelyStaleRuleTest {
         JobRiskView view = new JobRiskView(job, List.of(
                 new JobRiskView.PerItem("BRK-20A", 2,
                         List.of(loc("truck_8", 2, 0.30, "PART_USED", 4)),
-                        List.of())
+                        List.of(), null)
         ), NOW);
 
         List<Candidate> candidates = rule.evaluate(view);
@@ -116,7 +116,7 @@ class CountLikelyStaleRuleTest {
     }
 
     private JobRiskView.PerItem sku(String sku, int required, JobRiskView.LocationState... states) {
-        return new JobRiskView.PerItem(sku, required, List.of(states), List.of());
+        return new JobRiskView.PerItem(sku, required, List.of(states), List.of(), null);
     }
 
     private JobRiskView.LocationState loc(String id, int qty, double confidence, String lastEventType, int eventsSinceScan) {
