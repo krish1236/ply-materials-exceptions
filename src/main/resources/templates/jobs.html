@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Jobs at Risk</title>
+    <link rel="stylesheet" th:href="@{/app.css}">
+</head>
+<body>
+<header>
+    <nav>
+        <a href="/exceptions" class="brand">Materials Exceptions</a>
+        <a href="/exceptions">Today's Exceptions</a>
+        <a href="/jobs" class="active">Jobs at Risk</a>
+        <a href="/blog/event-sourced-exceptions">Engineering Post</a>
+    </nav>
+</header>
+<main>
+    <h1>Jobs at Risk</h1>
+    <p class="subtitle">Scheduled in next 48 hours</p>
+
+    <div th:if="${jobs.empty}" class="empty">No jobs scheduled.</div>
+
+    <table th:unless="${jobs.empty}" class="alerts">
+        <thead>
+        <tr>
+            <th>Readiness</th>
+            <th>Job</th>
+            <th>When</th>
+            <th>Customer</th>
+            <th>Tech</th>
+            <th>Truck</th>
+            <th>Open alerts</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="j : ${jobs}">
+            <td>
+                <span th:if="${alertsByJob.get(j.id()) == null}" class="sev sev-low">safe</span>
+                <span th:if="${alertsByJob.get(j.id()) != null}" class="sev sev-medium">at risk</span>
+            </td>
+            <td th:text="${j.id()}">job</td>
+            <td th:text="${j.scheduledFor()}">time</td>
+            <td th:text="${j.customer()}">cust</td>
+            <td th:text="${j.assignedTech()}">tech</td>
+            <td th:text="${j.assignedTruck()}">truck</td>
+            <td>
+                <span th:if="${alertsByJob.get(j.id()) == null}">0</span>
+                <span th:if="${alertsByJob.get(j.id()) != null}" th:text="${alertsByJob.get(j.id()).size()}">0</span>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</main>
+<footer>
+    <p>An exception layer for contractor inventory.</p>
+</footer>
+</body>
+</html>

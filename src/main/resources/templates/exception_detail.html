@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Exception detail</title>
+    <link rel="stylesheet" th:href="@{/app.css}">
+</head>
+<body>
+<header>
+    <nav>
+        <a href="/exceptions" class="brand">Materials Exceptions</a>
+        <a href="/exceptions">Today's Exceptions</a>
+        <a href="/jobs">Jobs at Risk</a>
+        <a href="/blog/event-sourced-exceptions">Engineering Post</a>
+    </nav>
+</header>
+<main>
+    <p><a href="/exceptions">&larr; back to list</a></p>
+    <h1 th:text="${alert.probableCause()}">probable cause</h1>
+    <p class="subtitle" th:text="${alert.summary()}">summary</p>
+
+    <div class="detail-grid">
+        <div><strong>Type</strong><br><span th:text="${alert.type()}">TYPE</span></div>
+        <div><strong>Severity</strong><br><span th:class="|sev sev-${alert.severity()}|" th:text="${alert.severity()}">med</span></div>
+        <div><strong>Status</strong><br><span th:text="${alert.status()}">open</span></div>
+        <div><strong>Job</strong><br><span th:text="${alert.affectedJobId()}">job</span></div>
+        <div><strong>SKU</strong><br><span th:text="${alert.affectedSku()}">sku</span></div>
+        <div><strong>Location</strong><br><span th:text="${alert.affectedLocation()}">loc</span></div>
+        <div><strong>Created</strong><br><span th:text="${alert.createdAt()}">t</span></div>
+        <div><strong>Last seen</strong><br><span th:text="${alert.lastSeenAt()}">t</span></div>
+    </div>
+
+    <h2>Suggested action</h2>
+    <p class="action" th:text="${alert.suggestedAction()}">action</p>
+
+    <h2>Evidence</h2>
+    <pre th:text="${evidencePretty}">{}</pre>
+
+    <form th:if="${alert.status() == 'open'}" th:action="@{'/exceptions/' + ${alert.id()} + '/acknowledge'}" method="post" style="display:inline">
+        <button type="submit">Acknowledge</button>
+    </form>
+    <form th:if="${alert.status() == 'open' or alert.status() == 'acknowledged'}" th:action="@{'/exceptions/' + ${alert.id()} + '/resolve'}" method="post" style="display:inline">
+        <button type="submit" class="primary">Mark resolved</button>
+    </form>
+</main>
+<footer>
+    <p>An exception layer for contractor inventory.</p>
+</footer>
+</body>
+</html>

@@ -65,7 +65,7 @@ public class ReplayService {
         int applied = projector.pumpOnce();
 
         Instant now = clock.instant();
-        Instant windowEnd = now.plus(Duration.ofDays(2));
+        Instant windowEnd = now.plus(Duration.ofDays(14));
         List<JobRiskView> views = viewBuilder.buildForScheduledBetween(now, windowEnd, now);
         List<Candidate> candidates = rules.evaluateAll(views);
         alerts.processEvaluation(candidates);

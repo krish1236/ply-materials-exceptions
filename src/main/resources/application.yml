@@ -29,3 +29,9 @@ ply:
   circuit-breaker:
     failure-threshold: 5
     cooldown-seconds: 60
+  projector:
+    scheduler-enabled: true
+    poll-ms: 500
+  rules:
+    scheduler-enabled: true
+    poll-ms: 30000

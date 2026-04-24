@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Today's Exceptions</title>
+    <link rel="stylesheet" th:href="@{/app.css}">
+</head>
+<body>
+<header>
+    <nav>
+        <a href="/exceptions" class="brand">Materials Exceptions</a>
+        <a href="/exceptions" class="active">Today's Exceptions</a>
+        <a href="/jobs">Jobs at Risk</a>
+        <a href="/blog/event-sourced-exceptions">Engineering Post</a>
+    </nav>
+</header>
+<main>
+    <h1>Today's Exceptions</h1>
+    <p class="subtitle" th:text="|${openCount} open, ${ackCount} acknowledged|">0 open, 0 acknowledged</p>
+
+    <section>
+        <h2>Open</h2>
+        <div th:if="${openAlerts.empty}" class="empty">
+            No open exceptions. Tomorrow's schedule looks clean.
+        </div>
+        <table th:unless="${openAlerts.empty}" class="alerts">
+            <thead>
+            <tr>
+                <th>Sev</th>
+                <th>Job</th>
+                <th>Item</th>
+                <th>Probable cause</th>
+                <th>Suggested action</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="a : ${openAlerts}" th:class="|row-${a.severity()}|">
+                <td><span th:class="|sev sev-${a.severity()}|" th:text="${a.severity()}">med</span></td>
+                <td th:text="${a.affectedJobId()}">job_x</td>
+                <td th:text="${a.affectedSku()}">SKU</td>
+                <td th:text="${a.probableCause()}">cause</td>
+                <td th:text="${a.suggestedAction()}">action</td>
+                <td><a th:href="@{'/exceptions/' + ${a.id()}}">details</a></td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section>
+        <h2>Acknowledged</h2>
+        <p class="section-hint">Picked up by the team but not yet resolved.</p>
+        <div th:if="${acknowledgedAlerts.empty}" class="empty">
+            Nothing in progress.
+        </div>
+        <table th:unless="${acknowledgedAlerts.empty}" class="alerts">
+            <thead>
+            <tr>
+                <th>Sev</th>
+                <th>Job</th>
+                <th>Item</th>
+                <th>Probable cause</th>
+                <th>Suggested action</th>
+                <th>Acknowledged</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="a : ${acknowledgedAlerts}" th:class="|row-${a.severity()} row-ack|">
+                <td><span th:class="|sev sev-${a.severity()}|" th:text="${a.severity()}">med</span></td>
+                <td th:text="${a.affectedJobId()}">job_x</td>
+                <td th:text="${a.affectedSku()}">SKU</td>
+                <td th:text="${a.probableCause()}">cause</td>
+                <td th:text="${a.suggestedAction()}">action</td>
+                <td th:text="${a.updatedAt()}">t</td>
+                <td><a th:href="@{'/exceptions/' + ${a.id()}}">details</a></td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+</main>
+<footer>
+    <p>An exception layer for contractor inventory.</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>The exception layer</title>
+    <link rel="stylesheet" th:href="@{/app.css}">
+    <style>
+        article { max-width: 720px; }
+        article h2 { margin-top: 32px; }
+        article p, article li { line-height: 1.7; }
+        article code { background: #f0f0f0; padding: 1px 6px; border-radius: 3px; font-size: 13px; }
+        article pre { max-width: 100%; }
+    </style>
+</head>
+<body>
+<header>
+    <nav>
+        <a href="/exceptions" class="brand">Materials Exceptions</a>
+        <a href="/exceptions">Today's Exceptions</a>
+        <a href="/jobs">Jobs at Risk</a>
+        <a href="/blog/event-sourced-exceptions" class="active">Engineering Post</a>
+    </nav>
+</header>
+<main>
+<article>
+    <p class="subtitle">Design notes</p>
+    <h1>The exception layer</h1>
+    <p>A small backend that sits on top of a contractor inventory feed and answers three questions for every scheduled job: is it at risk, why, and what to do. The sections below cover the design choices that matter.</p>
+
+    <h2>The framing that drove every other choice</h2>
+    <p>An inventory system is a belief about where parts are. Every number in that belief was last touched by a human, and people miscount, forget to scan, and don't always close the loop on transfers. So the system has to reason about trust in its own state, not only about counts.</p>
+    <p>That is why the central abstraction is not "stock." It is <strong>confidence</strong>.</p>
+
+    <h2>Event log as the only thing that's true</h2>
+    <p>Every count, every PO state, every price baseline is a projection over an append-only log. Nothing writes to projection tables except the projector, replaying the log.</p>
+    <p>The idempotency guarantee lives at the storage layer, not the app: <code>UNIQUE (source, external_id)</code> on <code>events</code>, combined with <code>INSERT ... ON CONFLICT DO NOTHING RETURNING id</code>. If rows affected is 1, new; if 0, the duplicate has already been accepted and we return 200. No locks, no race between a check and an insert.</p>
+    <pre>src/main/java/com/ply/exceptions/events/EventStore.java</pre>
+
+    <h2>Webhooks are hostile input</h2>
+    <p>The ingestion path verifies the signature before parsing any JSON. The compare uses <code>MessageDigest.isEqual</code> so timing is constant regardless of where the bytes diverge. A timestamp window bounds replay. 401 on any failure, with no body. Malformed payloads land in a <code>dead_letters</code> row with the reason and the raw body so an operator can fix the upstream and replay.</p>
+    <pre>src/main/java/com/ply/exceptions/webhook/HmacVerifier.java
+src/main/java/com/ply/exceptions/webhook/WebhookController.java</pre>
+
+    <h2>Confidence as a pure function</h2>
+    <p>The scorer takes recency of last scan, activity since, trust of the last event's source, and a conflict term. Weights sum to one, output is always in [0, 1]. No training, no model. Every weight is a constant in the source file.</p>
+    <pre>src/main/java/com/ply/exceptions/confidence/ConfidenceScorer.java</pre>
+    <p>The activity term halves every two intervening events (<code>Math.pow(0.5, n / 2.0)</code>), which matches how warehouse discipline tends to decay. Recency decays linearly over 14 days. Source trust is a small table: scan and receive at 0.9, transfer at 0.7, adjustment at 0.5, inferred at 0.3.</p>
+
+    <h2>Rules as pure functions over a materialized view</h2>
+    <p>Each rule implements one method: <code>List&lt;Candidate&gt; evaluate(JobRiskView view)</code>. No I/O, no DB access inside the rule. The builder materializes the view once per job; rules are pattern matches that attach a probable cause, a suggested action, and references to the events that triggered them.</p>
+    <pre>src/main/java/com/ply/exceptions/rules/JobRiskView.java
+src/main/java/com/ply/exceptions/rules/RulesEngine.java</pre>
+    <p>Six rules ship: missing part risk, count likely stale, unrecorded usage, untouched too long, PO will miss job date, reorder price spike. Two are deferred and documented in the README. Transfer not completed and conflicting location state both require correlation across events and do not fit cleanly into a view built for each job. Forcing them in would have bent the architecture for no good reason.</p>
+
+    <h2>Alert identity is deterministic</h2>
+    <p>Each candidate carries a <code>dedupe_key</code> like <code>COUNT_LIKELY_STALE:job_4721:BRK-20A:truck_8</code>. The alerts table has a unique index on that key. Upserts collapse repeated evaluations into the same row and bump <code>last_seen_at</code>. On a pass where a candidate no longer fires, a batch <code>UPDATE alerts SET status = 'auto_resolved' WHERE last_seen_at &lt; run_start AND status IN ('open', 'acknowledged')</code> closes the stragglers.</p>
+    <pre>src/main/java/com/ply/exceptions/alerts/AlertService.java</pre>
+    <p>One intentional stickiness: if a human marked an alert resolved, the next firing of the same key does not reopen it. Reopens only happen for alerts that were <code>auto_resolved</code>. A person's decision outranks a rule's.</p>
+
+    <h2>Resilience patterns kept minimal</h2>
+    <p>A circuit breaker per source, with <code>opened_at</code> persisted in Postgres. Opens after five consecutive <code>DataAccessException</code> errors from the event store append and cools down for 60 seconds. The breaker fronts the webhook controller so a genuinely broken dependency does not cascade into bad events landing in the log.</p>
+    <pre>src/main/java/com/ply/exceptions/resilience/CircuitBreaker.java
+src/main/java/com/ply/exceptions/resilience/ReplayService.java</pre>
+    <p>Replay is the primary recovery path. It truncates projections, resets the projector offset, reapplies every event in order, and reruns rules. On the current dataset it takes under a second. The event log is never touched.</p>
+
+    <h2>Trade-offs accepted</h2>
+    <ul>
+        <li>Postgres is the event log. At real volume this becomes Kafka or Kinesis. At current volume an extra broker is noise.</li>
+        <li>Single tenant. Every table would get a <code>tenant_id</code> column and a filter at the edge. The product shape does not change.</li>
+        <li>Thymeleaf, not React. Three screens rendered from the server are enough; a JS framework would add a build pipeline and client state without improving what the user sees.</li>
+        <li>Scheduled rules every 30 seconds rather than fired on each new event. The latency is fine for the morning flow of an operations manager; firing on each event is a next step if the latency ever matters.</li>
+        <li>Synthetic webhooks. A production integration needs sandbox credentials. The envelope shape matches the pattern real sources use, so an adapter is one file per source.</li>
+    </ul>
+
+    <h2>What the system does not do</h2>
+    <p>It is not an inventory platform. It is not a purchasing tool. It does not forecast, does not shop for prices, does not integrate with field service systems. It does one thing: for every job scheduled in the next two weeks, it decides whether the job is at risk, why, and what to do.</p>
+</article>
+</main>
+<footer>
+    <p>An exception layer for contractor inventory.</p>
+</footer>
+</body>
+</html>

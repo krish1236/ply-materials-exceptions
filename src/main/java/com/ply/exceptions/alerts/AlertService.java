@@ -111,6 +111,14 @@ public class AlertService {
                 rowMapper());
     }
 
+    public List<Alert> findByStatus(String status) {
+        return jdbc.query(
+                "SELECT " + COLUMNS + " FROM alerts WHERE status = ?"
+                        + " ORDER BY CASE severity WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,"
+                        + "          updated_at DESC",
+                rowMapper(), status);
+    }
+
     public List<Alert> findAll() {
         return jdbc.query(
                 "SELECT " + COLUMNS + " FROM alerts ORDER BY created_at DESC",

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:fragment="page(title, body)">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${title}">Materials Exceptions</title>
+    <link rel="stylesheet" th:href="@{/app.css}">
+</head>
+<body>
+<header>
+    <nav>
+        <a href="/exceptions" class="brand">Materials Exceptions</a>
+        <a href="/exceptions">Today's Exceptions</a>
+        <a href="/jobs">Jobs at Risk</a>
+        <a href="/blog/event-sourced-exceptions">Engineering Post</a>
+    </nav>
+</header>
+<main>
+    <div th:replace="${body}">content</div>
+</main>
+<footer>
+    <p>An exception layer for contractor inventory. Source on <a href="#">GitHub</a>.</p>
+</footer>
+</body>
+</html>

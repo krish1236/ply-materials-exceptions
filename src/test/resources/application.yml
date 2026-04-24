@@ -20,3 +20,6 @@ ply:
   circuit-breaker:
     failure-threshold: 5
     cooldown-seconds: 60
+  rules:
+    scheduler-enabled: false
+    poll-ms: 30000
