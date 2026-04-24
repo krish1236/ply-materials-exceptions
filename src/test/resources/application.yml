@@ -17,3 +17,6 @@ ply:
   projector:
     scheduler-enabled: false
     poll-ms: 500
+  circuit-breaker:
+    failure-threshold: 5
+    cooldown-seconds: 60
